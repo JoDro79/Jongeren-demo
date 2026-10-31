@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>EECD Jongeren Demo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<style>
+/* Layout: sticky kop met vier schermen; leiding = lijst + QR-kaart, dashboard = kerncijfers → grafiek → tabellen, jongeren- en ouderscherm = smalle kaart met grote knoppen */
+:root{
+  --bg:#F2F4F8; --surface:#FFFFFF; --sunk:#E8ECF2; --line:#D4DBE5;
+  --ink:#17202B; --muted:#596577; --accent:#2B4FA8; --accent-ink:#FFFFFF; --accent-soft:#DFE7F8;
+  --qr:#3E7D8C; --ok:#23784A; --ok-soft:#DCEFE3; --warn:#A8670E; --warn-soft:#F6E8D2; --bad:#B53A2A; --bad-soft:#F6DEDA;
+  --m1:#B53A2A; --m2:#C77A22; --m3:#8C8A3A; --m4:#4E9A5C; --m5:#23784A;
+  --shadow:0 1px 2px rgba(20,30,45,.06),0 4px 14px rgba(20,30,45,.05);
+  --f-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"Atkinson Hyperlegible",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#10151C; --surface:#18202A; --sunk:#212A36; --line:#2E3946;
+  --ink:#E7ECF2; --muted:#98A5B6; --accent:#86A8F0; --accent-ink:#0D1420; --accent-soft:#1F2C47;
+  --qr:#6FB6C7; --ok:#5BC387; --ok-soft:#173224; --warn:#E3A54A; --warn-soft:#3A2B14; --bad:#EE7D6A; --bad-soft:#3C1E19;
+  --m1:#EE7D6A; --m2:#E6A04F; --m3:#C9C46A; --m4:#7CCB8A; --m5:#5BC387;
+  --shadow:none; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151C; --surface:#18202A; --sunk:#212A36; --line:#2E3946;
+  --ink:#E7ECF2; --muted:#98A5B6; --accent:#86A8F0; --accent-ink:#0D1420; --accent-soft:#1F2C47;
+  --qr:#6FB6C7; --ok:#5BC387; --ok-soft:#173224; --warn:#E3A54A; --warn-soft:#3A2B14; --bad:#EE7D6A; --bad-soft:#3C1E19;
+  --m1:#EE7D6A; --m2:#E6A04F; --m3:#C9C46A; --m4:#7CCB8A; --m5:#5BC387;
+  --shadow:none; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1000px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--surface);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding-block:12px 0}
+.brand b{font-family:var(--f-display);font-size:1.25rem;letter-spacing:-.01em;line-height:1.1;display:block}
+.brand span{font-size:.8rem;color:var(--muted)}
+.demo-tag{display:inline-block;background:var(--warn-soft);color:var(--warn);font-weight:700;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:3px}
+nav.tabs{display:flex;gap:2px;margin-left:auto;align-self:flex-end;overflow-x:auto;max-width:100%}
+nav.tabs button{background:none;border:0;padding:10px 11px 12px;font-weight:700;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-current="page"]{color:var(--ink);border-color:var(--accent)}
+@media (max-width:620px){nav.tabs{margin-left:0;width:100%}nav.tabs button{flex:1;padding-inline:6px;font-size:.92rem}}
+main{padding-block:20px 80px}
+.banner{border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:.92rem;background:var(--warn-soft);border:1px solid var(--line)}
+.empty{padding:24px 18px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:12px}
+.empty b{display:block;color:var(--ink);font-family:var(--f-display);font-size:1.05rem;margin-bottom:4px}
+h1{font-family:var(--f-display);font-size:1.7rem;line-height:1.15;margin:0;text-wrap:balance}
+h2{font-family:var(--f-display);font-size:1.15rem;margin:0;text-wrap:balance}
+.section{display:flex;flex-direction:column;gap:12px;margin-top:26px}
+.section-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px}
+.muted{color:var(--muted)} .small{font-size:.86rem}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-weight:700}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.big{padding:14px 18px;font-size:1.1rem;border-radius:12px;width:100%}
+.btn.ghost{border-color:transparent;background:none;color:var(--accent);padding-inline:6px}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-weight:700;font-size:.9rem;color:var(--muted)}
+.chip[aria-pressed="true"]{color:var(--ink);background:var(--accent-soft);border-color:var(--accent)}
+label.field{display:flex;flex-direction:column;gap:4px;font-size:.8rem;font-weight:700;color:var(--muted);letter-spacing:.02em;min-width:0}
+input[type=text],input[type=search],input[type=date],select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:1rem;width:100%;min-width:0}
+textarea{min-height:80px;resize:vertical}
+.pill{display:inline-block;border-radius:999px;padding:1px 8px;font-size:.75rem;font-weight:700;letter-spacing:.02em;white-space:nowrap}
+.pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.info{background:var(--sunk);color:var(--muted)} .pill.qr{background:var(--accent-soft);color:var(--accent)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow);min-width:0}
+
+/* Leiding: vandaag */
+.today-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+@media (max-width:820px){.today-grid{grid-template-columns:1fr}}
+.datebar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.datebar .day{font-family:var(--f-display);font-size:1.4rem;line-height:1.15;flex:1 1 auto;min-width:0}
+.arrow{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:1.2rem;line-height:1}
+.lesrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:560px){.lesrow{grid-template-columns:1fr}}
+.tally{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:.92rem;font-variant-numeric:tabular-nums}
+.t-ok{color:var(--ok);font-weight:700}.t-warn{color:var(--warn);font-weight:700}.t-bad{color:var(--bad);font-weight:700}.t-qr{color:var(--accent);font-weight:700}
+.qrcard{display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center;position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px)}
+.qrbox{background:#fff;padding:12px;border-radius:12px;border:1px solid var(--line);line-height:0}
+.qrbox img{width:220px;height:220px;image-rendering:pixelated;max-width:100%}
+@media (max-width:820px){.qrcard{position:static}}
+ul.rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.row{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:12px;padding:12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:center}
+.row.s-aanwezig{border-left-color:var(--ok)} .row.s-afgemeld{border-left-color:var(--warn)} .row.s-afwezig{border-left-color:var(--bad)}
+.row .naam{font-weight:700;font-size:1.05rem;overflow-wrap:anywhere}
+.row .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:3px;align-items:center}
+.row .deel{grid-column:1/-1;font-size:.9rem;color:var(--muted);font-style:italic;overflow-wrap:anywhere}
+.row .act{grid-column:1/-1;display:flex;justify-content:flex-end}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--sunk)}
+.seg button{border:0;background:none;padding:9px 12px;font-weight:700;font-size:.9rem;color:var(--muted);min-height:42px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[data-v="aanwezig"][aria-pressed="true"]{background:var(--ok);color:#fff}
+.seg button[data-v="afgemeld"][aria-pressed="true"]{background:var(--warn);color:#fff}
+.seg button[data-v="afwezig"][aria-pressed="true"]{background:var(--bad);color:#fff}
+@media (max-width:520px){.row{grid-template-columns:1fr}.seg{width:100%}.seg button{flex:1}}
+.mood{display:inline-flex;align-items:center;gap:5px;font-size:.8rem;font-weight:700}
+.mood i{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+/* Dashboard */
+.filters{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow)}
+.kpi .lbl{font-size:.74rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.kpi .val{font-family:var(--f-display);font-size:1.85rem;line-height:1.1;font-variant-numeric:tabular-nums;margin-top:4px}
+.kpi .sub{font-size:.8rem;color:var(--muted)}
+.chart-box{overflow-x:auto}
+.chart-box svg{display:block;min-width:100%}
+.chart-box text{fill:var(--muted);font-family:var(--f-body);font-size:11px}
+.chart-box .grid{stroke:var(--line)}
+.chart-box .bq{fill:var(--accent)} .chart-box .bl{fill:var(--qr);opacity:.55}
+.chart-box .mline{fill:none;stroke:var(--warn);stroke-width:2}
+.chart-box .mdot{fill:var(--warn)}
+.chart-box .vlab{fill:var(--ink);font-weight:700}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.86rem;color:var(--muted);align-items:center}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
+th{font-size:.73rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--sunk);font-weight:700}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.dots{display:inline-flex;gap:4px}
+.dots i{width:12px;height:12px;border-radius:50%;display:inline-block;background:var(--sunk);border:2px solid var(--line)}
+.dots i.aanwezig{background:var(--ok);border-color:var(--ok)}
+.dots i.qr{background:var(--accent);border-color:var(--accent)}
+.dots i.afgemeld{background:transparent;border-color:var(--warn)}
+.dots i.afwezig{background:var(--bad);border-color:var(--bad)}
+.feed{display:flex;flex-direction:column;gap:8px;list-style:none;margin:0;padding:0}
+.feed li{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px}
+.feed li.done{opacity:.6}
+.feed .head{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:.86rem;color:var(--muted)}
+.feed .head b{color:var(--ink);font-size:.95rem}
+.feed .txt{grid-column:1/-1;white-space:pre-wrap;overflow-wrap:anywhere}
+.feed label{display:flex;gap:6px;align-items:center;font-size:.86rem;color:var(--muted);white-space:nowrap}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:820px){.two{grid-template-columns:1fr}}
+
+/* Jongeren- en ouderscherm */
+.narrow{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.namegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.namegrid button{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:14px 10px;font-weight:700;text-align:left}
+.done-box{display:flex;gap:12px;align-items:center;background:var(--ok-soft);border:1px solid var(--ok);border-radius:12px;padding:14px}
+.done-box .check{width:40px;height:40px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:1.3rem;flex:0 0 auto}
+.moods{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.moods button{border:2px solid var(--line);background:var(--surface);border-radius:10px;padding:12px 4px;font-weight:700;font-size:.88rem;display:flex;flex-direction:column;align-items:center;gap:6px}
+.moods button i{width:18px;height:18px;border-radius:50%}
+.moods button[aria-pressed="true"]{border-color:var(--ink);background:var(--sunk)}
+.checkline{display:flex;gap:10px;align-items:flex-start;font-size:.95rem}
+.checkline input{margin-top:4px;width:18px;height:18px;flex:0 0 auto}
+fieldset{border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}
+legend{font-size:.8rem;font-weight:700;color:var(--muted);letter-spacing:.02em;margin-bottom:6px;padding:0}
+.radios{display:flex;flex-wrap:wrap;gap:8px}
+.radios label{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:var(--surface)}
+
+.sheet-backdrop{position:fixed;inset:0;background:rgba(10,15,22,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:560px;border-radius:16px 16px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;gap:12px}
+@media (min-width:640px){.sheet-backdrop{align-items:center}.sheet{border-radius:16px}}
+.sheet .bar{display:flex;gap:8px;justify-content:flex-end}
+
+/* QR-kaarten en dossier */
+.qrgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.qrkaart{background:#fff;color:#17202B;border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.qrkaart img{width:140px;height:140px;image-rendering:pixelated}
+.qritem{display:flex;flex-direction:column;gap:6px}
+.qrkaart b{font-family:var(--f-display);font-size:1rem}
+.qrkaart span{font-size:.72rem;color:#596577;letter-spacing:.04em;text-transform:uppercase}
+.jlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.jlist li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.jlist .naam{font-weight:700}
+.jlist .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;align-items:center;font-size:.85rem;color:var(--muted)}
+.dhead{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:start}
+.dhead .qrkaart{padding:8px}.dhead .qrkaart img{width:96px;height:96px}
+@media (max-width:560px){.dhead{grid-template-columns:1fr}.dhead .qrkaart{display:none}}
+.scanbox{display:flex;gap:12px;align-items:center;border-radius:12px;padding:14px;border:1px solid var(--accent);background:var(--accent-soft)}
+.scanbox.ok{border-color:var(--ok);background:var(--ok-soft)}
+.scanbox .check{width:40px;height:40px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:1.3rem;flex:0 0 auto}
+.scanbox .grow{flex:1;min-width:0}
+.timeline{display:flex;flex-wrap:wrap;gap:6px}
+.timeline span{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:.72rem;color:var(--muted);min-width:44px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.stats div{background:var(--sunk);border-radius:10px;padding:10px 12px}
+.stats b{display:block;font-family:var(--f-display);font-size:1.4rem;font-variant-numeric:tabular-nums}
+.stats small{color:var(--muted);font-size:.78rem}
+.fab{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:15;display:flex;align-items:center;gap:8px;background:var(--accent);color:var(--accent-ink);border:0;border-radius:999px;padding:14px 20px;font-weight:700;font-size:1rem;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.fab svg{width:20px;height:20px;flex:0 0 auto}
+.fab:disabled{opacity:.6}
+main{padding-bottom:110px}
+.toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))!important}
+.scanview{position:fixed;inset:0;z-index:40;background:#000;display:flex;flex-direction:column}
+.scanview video{flex:1;width:100%;min-height:0;object-fit:cover}
+.scanview .frame{position:absolute;left:50%;top:45%;width:min(70vw,320px);aspect-ratio:1;transform:translate(-50%,-50%);border:3px solid #fff;border-radius:18px;box-shadow:0 0 0 9999px rgba(0,0,0,.45);pointer-events:none}
+.scanview .bar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:14px max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));background:#000}
+.scanview .bar .btn{background:#fff;color:#111;border-color:#fff}
+.scanview .msg{position:absolute;left:0;right:0;top:calc(14px + env(safe-area-inset-top,0px));text-align:center;color:#fff;font-weight:700;text-shadow:0 1px 3px #000;padding-inline:16px}
+.demofoot{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);margin-top:40px;padding-top:14px;font-size:.86rem;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;z-index:30;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:no-preference){.row,.seg button,.moods button{transition:background-color .15s,border-color .15s}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><b>Jongeren 15–18<span class="demo-tag">Demo</span></b><span>El Encuentro Con Dios · Purmerend</span></div>
+    <nav class="tabs" aria-label="Schermen">
+      <button type="button" data-view="leiding">Vandaag</button>
+      <button type="button" data-view="dashboard">Dashboard</button>
+      <button type="button" data-view="jongeren">Jongeren</button>
+      <button type="button" data-view="toestemming">Toestemming</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="banner" class="banner" hidden></div>
+  <section id="v-leiding" hidden></section>
+  <section id="v-dashboard" hidden></section>
+  <section id="v-jongeren" hidden></section>
+  <section id="v-dossier" hidden></section>
+  <section id="v-toestemming" hidden></section>
+  <div class="demofoot"><span>Demo met fictieve jongeren. Wat je invult blijft alleen op dit apparaat.</span><button type="button" class="btn" id="demo-reset">Demo opnieuw beginnen</button></div>
+</main>
+
+<div id="sheet" class="sheet-backdrop" hidden>
+  <form class="sheet" id="note-form">
+    <h2 id="note-title">Notitie</h2>
+    <label class="field" for="note-tekst">Wat wil je vastleggen?
+      <textarea id="note-tekst" required placeholder="Bijv. vroeg na afloop om een gesprek"></textarea></label>
+    <p class="small muted" style="margin:0">Alleen leiding met toegang ziet dit. Geen medische gegevens.</p>
+    <div class="bar"><button type="button" class="btn" id="note-cancel">Annuleren</button><button type="submit" class="btn primary">Opslaan</button></div>
+  </form>
+</div>
+<div id="toast" class="toast" hidden role="status"></div>
+<button type="button" class="fab" id="scan-btn" aria-label="Scan QR-kaart met de camera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M7 12h10"/></svg><span id="scan-label">Scan kaart</span></button>
+<input type="file" id="scan-input" accept="image/*" capture="environment" hidden>
+<div class="scanview" id="scanview" hidden><video id="scanvideo" playsinline muted></video><div class="frame"></div><div class="msg" id="scanmsg">Richt de camera op de QR-kaart</div>
+<div class="bar"><button type="button" class="btn" id="scan-photo">Foto maken</button><button type="button" class="btn" id="scan-close">Sluiten</button></div></div>
+
+<script>
+/* Lokale opslag voor de demo: alles blijft op dit apparaat. Zelfde interface als de online versie. */
+(function(){
+"use strict";
+const KEY="eecd-jongeren-demo-v1";
+const SEED={"jongeren": {"demo02": {"naam": "Mateo Rojas", "actief": true, "sinds": "2026-09-01", "aangemaakt": "2026-09-01T12:00:00Z", "demo": true, "geboortedatum": "2008-07-22"}, "demo10": {"naam": "Gabriel Mendoza", "actief": true, "sinds": "2026-09-01", "aangemaakt": "2026-09-01T12:00:00Z", "demo": true, "geboortedatum": "2011-08-11"}, "demo07": {"naam": "Isabella Gómez", "actief": true, "sinds": "2026-09-01", "aangemaakt": "2026-09-01T12:00:00Z", "demo": true, "geboortedatum": "2010-02-27"}, "demo12": {"naam": "Levi Jansen", "actief": true, "sinds": "2026-09-01", "aangemaakt": "2026-09-01T12:00:00Z", "demo": true, "geboortedatum": "2009-09-16"}, "demo09": {"naam": "Noa de Vries", "actief": true, "sinds": "2026-09-01", "aangemaakt": "2026-09-01T12:00:00Z", "demo": true, "geboortedatum": "2008-12-03"}, "demo01": {"naam": "Daniela Morales", "actief": true, "sinds": "2026-09-01", "aangemaakt": "2026-09-01T12:00:00Z", "demo": true, "geboortedatum": "2009-03-14"}, "demo05": {"naam": "Valentina Cruz", "actief": true, "sinds": "2026-09-01", "aangemaakt": "2026-09-01T12:00:00Z", "demo": true, "geboortedatum": "2009-05-30"}, "demo11": {"naam": "Camila Ortiz", "actief": true, "sinds": "2026-09-01", "aangemaakt": "2026-09-01T12:00:00Z", "demo": true, "geboortedatum": "2010-06-02"}, "demo03": {"naam": "Sofía Herrera", "actief": true, "sinds": "2026-09-01", "aangemaakt": "2026-09-01T12:00:00Z", "demo": true, "geboortedatum": "2011-01-09"}, "demo06": {"naam": "Joël Bakker", "actief": true, "sinds": "2026-09-01", "aangemaakt": "2026-09-01T12:00:00Z", "demo": true, "geboortedatum": "2011-04-18"}, "demo08": {"naam": "Thiago Vargas", "actief": true, "sinds": "2026-09-01", "aangemaakt": "2026-09-01T12:00:00Z", "demo": true, "geboortedatum": "2009-11-21"}, "demo04": {"naam": "Samuel Pérez", "actief": true, "sinds": "2026-09-01", "aangemaakt": "2026-09-01T12:00:00Z", "demo": true, "geboortedatum": "2010-11-05"}}, "sessies": {"2026-10-16": {"datum": "2026-10-16", "thema": "Profetische tijden", "les": "Daniël in Babylon", "deelnemers": {"demo01": {"status": "aanwezig", "tijd": "2026-10-16T19:16:00", "via": "qr", "stemming": 4}, "demo02": {"status": "aanwezig", "tijd": "2026-10-16T19:04:00", "via": "qr", "stemming": 3}, "demo03": {"status": "afgemeld", "tijd": "2026-10-16T19:08:00"}, "demo04": {"status": "aanwezig", "tijd": "2026-10-16T19:16:00", "via": "qr", "stemming": 4}, "demo05": {"status": "aanwezig", "tijd": "2026-10-16T19:05:00", "via": "qr", "stemming": 4}, "demo06": {"status": "afwezig", "tijd": "2026-10-16T19:10:00"}, "demo07": {"status": "aanwezig", "tijd": "2026-10-16T19:06:00", "via": "qr", "stemming": 4}, "demo08": {"status": "afgemeld", "tijd": "2026-10-16T19:07:00"}, "demo09": {"status": "aanwezig", "tijd": "2026-10-16T19:02:00", "via": "qr", "stemming": 4}, "demo10": {"status": "aanwezig", "tijd": "2026-10-16T19:02:00", "via": "qr", "stemming": 4}, "demo11": {"status": "aanwezig", "tijd": "2026-10-16T19:12:00", "via": "qr"}, "demo12": {"status": "aanwezig", "tijd": "2026-10-16T19:20:00", "via": "qr"}}, "bijgewerkt": "2026-10-16T21:00:00Z"}, "2026-09-18": {"datum": "2026-09-18", "thema": "Kairos: Opwekking", "les": "Nehemia herbouwt", "deelnemers": {"demo01": {"status": "aanwezig", "tijd": "2026-09-18T19:19:00", "via": "leiding"}, "demo02": {"status": "afwezig", "tijd": "2026-09-18T19:03:00"}, "demo03": {"status": "aanwezig", "tijd": "2026-09-18T19:15:00", "via": "leiding", "stemming": 3}, "demo04": {"status": "aanwezig", "tijd": "2026-09-18T19:05:00", "via": "leiding", "stemming": 5}, "demo05": {"status": "aanwezig", "tijd": "2026-09-18T19:16:00", "via": "qr"}, "demo06": {"status": "aanwezig", "tijd": "2026-09-18T19:11:00", "via": "leiding", "stemming": 4}, "demo07": {"status": "aanwezig", "tijd": "2026-09-18T19:20:00", "via": "qr"}, "demo08": {"status": "afwezig", "tijd": "2026-09-18T19:12:00"}, "demo09": {"status": "aanwezig", "tijd": "2026-09-18T19:15:00", "via": "qr", "stemming": 3}, "demo10": {"status": "afgemeld", "tijd": "2026-09-18T19:19:00"}, "demo11": {"status": "afwezig", "tijd": "2026-09-18T19:11:00"}, "demo12": {"status": "aanwezig", "tijd": "2026-09-18T19:06:00", "via": "qr", "stemming": 5}}, "bijgewerkt": "2026-09-18T21:00:00Z"}, "2026-09-11": {"datum": "2026-09-11", "thema": "Kairos: Opwekking", "les": "Gebed als begin", "deelnemers": {"demo01": {"status": "afgemeld", "tijd": "2026-09-11T19:08:00"}, "demo02": {"status": "aanwezig", "tijd": "2026-09-11T19:09:00", "via": "leiding"}, "demo03": {"status": "afgemeld", "tijd": "2026-09-11T19:11:00"}, "demo04": {"status": "aanwezig", "tijd": "2026-09-11T19:19:00", "via": "qr", "stemming": 4}, "demo05": {"status": "aanwezig", "tijd": "2026-09-11T19:15:00", "via": "qr", "stemming": 5}, "demo06": {"status": "aanwezig", "tijd": "2026-09-11T19:17:00", "via": "leiding", "stemming": 4}, "demo07": {"status": "aanwezig", "tijd": "2026-09-11T19:04:00", "via": "qr", "stemming": 5}, "demo08": {"status": "aanwezig", "tijd": "2026-09-11T19:05:00", "via": "leiding", "stemming": 4}, "demo09": {"status": "aanwezig", "tijd": "2026-09-11T19:04:00", "via": "leiding", "stemming": 5}, "demo10": {"status": "aanwezig", "tijd": "2026-09-11T19:17:00", "via": "leiding", "stemming": 3}, "demo11": {"status": "aanwezig", "tijd": "2026-09-11T19:02:00", "via": "leiding", "stemming": 3}, "demo12": {"status": "aanwezig", "tijd": "2026-09-11T19:18:00", "via": "qr", "stemming": 4}}, "bijgewerkt": "2026-09-11T21:00:00Z"}, "2026-09-25": {"datum": "2026-09-25", "thema": "Kairos: Opwekking", "les": "Pinksteren toen en nu", "deelnemers": {"demo01": {"status": "afgemeld", "tijd": "2026-09-25T19:11:00"}, "demo02": {"status": "afgemeld", "tijd": "2026-09-25T19:12:00"}, "demo03": {"status": "afgemeld", "tijd": "2026-09-25T19:05:00"}, "demo04": {"status": "aanwezig", "tijd": "2026-09-25T19:12:00", "via": "qr"}, "demo05": {"status": "aanwezig", "tijd": "2026-09-25T19:00:00", "via": "qr"}, "demo06": {"status": "afgemeld", "tijd": "2026-09-25T19:15:00"}, "demo07": {"status": "aanwezig", "tijd": "2026-09-25T19:17:00", "via": "qr", "stemming": 5}, "demo08": {"status": "aanwezig", "tijd": "2026-09-25T19:13:00", "via": "leiding", "stemming": 4}, "demo09": {"status": "aanwezig", "tijd": "2026-09-25T19:07:00", "via": "leiding", "stemming": 5}, "demo10": {"status": "aanwezig", "tijd": "2026-09-25T19:14:00", "via": "leiding"}, "demo11": {"status": "aanwezig", "tijd": "2026-09-25T19:04:00", "via": "leiding", "stemming": 3}, "demo12": {"status": "afgemeld", "tijd": "2026-09-25T19:00:00"}}, "bijgewerkt": "2026-09-25T21:00:00Z"}, "2026-10-09": {"datum": "2026-10-09", "thema": "Profetische tijden", "les": "Jona en Gods genade", "deelnemers": {"demo01": {"status": "aanwezig", "tijd": "2026-10-09T19:14:00", "via": "qr", "stemming": 4}, "demo02": {"status": "aanwezig", "tijd": "2026-10-09T19:03:00", "via": "leiding"}, "demo03": {"status": "afwezig", "tijd": "2026-10-09T19:08:00"}, "demo04": {"status": "aanwezig", "tijd": "2026-10-09T19:04:00", "via": "leiding"}, "demo05": {"status": "aanwezig", "tijd": "2026-10-09T19:04:00", "via": "qr", "stemming": 4}, "demo06": {"status": "aanwezig", "tijd": "2026-10-09T19:05:00", "via": "qr", "stemming": 3}, "demo07": {"status": "aanwezig", "tijd": "2026-10-09T19:19:00", "via": "leiding", "stemming": 3}, "demo08": {"status": "afgemeld", "tijd": "2026-10-09T19:08:00"}, "demo09": {"status": "aanwezig", "tijd": "2026-10-09T19:03:00", "via": "leiding", "stemming": 4}, "demo10": {"status": "aanwezig", "tijd": "2026-10-09T19:16:00", "via": "leiding", "stemming": 5}, "demo11": {"status": "aanwezig", "tijd": "2026-10-09T19:08:00", "via": "qr", "stemming": 5}, "demo12": {"status": "aanwezig", "tijd": "2026-10-09T19:07:00", "via": "leiding", "stemming": 5}}, "bijgewerkt": "2026-10-09T21:00:00Z"}, "2026-09-04": {"datum": "2026-09-04", "thema": "Kairos: Opwekking", "les": "Wat is opwekking?", "deelnemers": {"demo01": {"status": "aanwezig", "tijd": "2026-09-04T19:01:00", "via": "qr", "stemming": 4}, "demo02": {"status": "aanwezig", "tijd": "2026-09-04T19:01:00", "via": "qr", "stemming": 4}, "demo03": {"status": "aanwezig", "tijd": "2026-09-04T19:03:00", "via": "leiding"}, "demo04": {"status": "aanwezig", "tijd": "2026-09-04T19:12:00", "via": "qr", "stemming": 5}, "demo05": {"status": "afgemeld", "tijd": "2026-09-04T19:17:00"}, "demo06": {"status": "aanwezig", "tijd": "2026-09-04T19:03:00", "via": "leiding"}, "demo07": {"status": "aanwezig", "tijd": "2026-09-04T19:18:00", "via": "qr", "stemming": 5}, "demo08": {"status": "aanwezig", "tijd": "2026-09-04T19:18:00", "via": "leiding", "stemming": 4}, "demo09": {"status": "afgemeld", "tijd": "2026-09-04T19:02:00"}, "demo10": {"status": "aanwezig", "tijd": "2026-09-04T19:14:00", "via": "leiding"}, "demo11": {"status": "aanwezig", "tijd": "2026-09-04T19:04:00", "via": "leiding", "stemming": 5}, "demo12": {"status": "aanwezig", "tijd": "2026-09-04T19:10:00", "via": "leiding", "stemming": 5}}, "bijgewerkt": "2026-09-04T21:00:00Z"}, "2026-10-23": {"datum": "2026-10-23", "thema": "Profetische tijden", "les": "Jezus komt terug: wees klaar", "deelnemers": {"demo01": {"status": "aanwezig", "tijd": "2026-10-23T19:20:00", "via": "qr"}, "demo02": {"status": "aanwezig", "tijd": "2026-10-23T19:16:00", "via": "qr"}, "demo03": {"status": "aanwezig", "tijd": "2026-10-23T19:20:00", "via": "qr", "stemming": 4}, "demo04": {"status": "aanwezig", "tijd": "2026-10-23T19:12:00", "via": "qr", "stemming": 5}, "demo05": {"status": "aanwezig", "tijd": "2026-10-23T19:07:00", "via": "qr", "stemming": 3}, "demo06": {"status": "aanwezig", "tijd": "2026-10-23T19:17:00", "via": "qr", "stemming": 5}, "demo07": {"status": "aanwezig", "tijd": "2026-10-23T19:02:00", "via": "qr", "stemming": 4}, "demo08": {"status": "afgemeld", "tijd": "2026-10-23T19:12:00"}, "demo09": {"status": "aanwezig", "tijd": "2026-10-23T19:01:00", "via": "qr"}, "demo10": {"status": "aanwezig", "tijd": "2026-10-23T19:10:00", "via": "qr"}, "demo11": {"status": "aanwezig", "tijd": "2026-10-23T19:04:00", "via": "qr", "stemming": 2}, "demo12": {"status": "afwezig", "tijd": "2026-10-23T19:06:00"}}, "bijgewerkt": "2026-10-23T21:00:00Z"}, "2026-10-02": {"datum": "2026-10-02", "thema": "Profetische tijden", "les": "Wat is een profeet?", "deelnemers": {"demo01": {"status": "aanwezig", "tijd": "2026-10-02T19:15:00", "via": "leiding", "stemming": 3}, "demo02": {"status": "aanwezig", "tijd": "2026-10-02T19:15:00", "via": "leiding", "stemming": 5}, "demo03": {"status": "aanwezig", "tijd": "2026-10-02T19:03:00", "via": "qr", "stemming": 3}, "demo04": {"status": "aanwezig", "tijd": "2026-10-02T19:19:00", "via": "qr"}, "demo05": {"status": "aanwezig", "tijd": "2026-10-02T19:16:00", "via": "leiding"}, "demo06": {"status": "afgemeld", "tijd": "2026-10-02T19:17:00"}, "demo07": {"status": "afgemeld", "tijd": "2026-10-02T19:04:00"}, "demo08": {"status": "aanwezig", "tijd": "2026-10-02T19:02:00", "via": "leiding", "stemming": 4}, "demo09": {"status": "aanwezig", "tijd": "2026-10-02T19:20:00", "via": "leiding", "stemming": 4}, "demo10": {"status": "afwezig", "tijd": "2026-10-02T19:12:00"}, "demo11": {"status": "afgemeld", "tijd": "2026-10-02T19:05:00"}, "demo12": {"status": "aanwezig", "tijd": "2026-10-02T19:10:00", "via": "qr", "stemming": 3}}, "bijgewerkt": "2026-10-02T21:00:00Z"}}, "toestemmingen": {"demo10": {"jid": "demo10", "door": "ouder", "naam": "A. Mendoza", "registratie": true, "dossier": true, "contact": true, "datum": "2026-10-12", "ingetrokken": false, "aangemaakt": "2026-10-12T19:00:00Z"}, "demo05": {"jid": "demo05", "door": "zelf", "naam": "Valentina Cruz", "registratie": true, "dossier": true, "contact": true, "datum": "2026-09-14", "ingetrokken": false, "aangemaakt": "2026-09-14T19:00:00Z"}, "demo03": {"jid": "demo03", "door": "ouder", "naam": "R. Herrera", "registratie": true, "dossier": true, "contact": true, "datum": "2026-09-10", "ingetrokken": false, "aangemaakt": "2026-09-10T19:00:00Z"}, "demo09": {"jid": "demo09", "door": "zelf", "naam": "Noa de Vries", "registratie": true, "dossier": true, "contact": true, "datum": "2026-10-05", "ingetrokken": false, "aangemaakt": "2026-10-05T19:00:00Z"}, "demo01": {"jid": "demo01", "door": "ouder", "naam": "M. Morales", "registratie": true, "dossier": true, "contact": true, "datum": "2026-09-08", "ingetrokken": false, "aangemaakt": "2026-09-08T19:00:00Z"}, "demo07": {"jid": "demo07", "door": "ouder", "naam": "L. Gómez", "registratie": true, "dossier": true, "contact": true, "datum": "2026-09-21", "ingetrokken": false, "aangemaakt": "2026-09-21T19:00:00Z"}, "demo06": {"jid": "demo06", "door": "ouder", "naam": "P. Bakker", "registratie": true, "dossier": true, "contact": true, "datum": "2026-09-15", "ingetrokken": false, "aangemaakt": "2026-09-15T19:00:00Z"}, "demo02": {"jid": "demo02", "door": "zelf", "naam": "Mateo Rojas", "registratie": true, "dossier": true, "contact": true, "datum": "2026-09-08", "ingetrokken": false, "aangemaakt": "2026-09-08T19:00:00Z"}}, "notities": {"n3": {"jid": "demo04", "datum": "2026-10-16", "soort": "compliment", "tekst": "Hielp spontaan de jongeren van 12–14 met de opdracht.", "afgehandeld": true, "door": null, "aangemaakt": "2026-10-16T21:30:00Z"}, "n1": {"jid": "demo11", "datum": "2026-10-23", "soort": "gesprek", "tekst": "Was stil vandaag. Gaf aan dat het druk is op school met examenjaar. Volgende week even bijpraten.", "afgehandeld": false, "door": null, "aangemaakt": "2026-10-23T21:30:00Z"}, "n2": {"jid": "demo08", "datum": "2026-10-23", "soort": "ouders", "tekst": "Drie weken niet geweest. Bericht gestuurd, nog geen reactie.", "afgehandeld": false, "door": null, "aangemaakt": "2026-10-23T21:30:00Z"}, "n4": {"jid": "demo03", "datum": "2026-10-09", "soort": "gebed", "tekst": "Vroeg om gebed voor haar oma die verhuist naar een verpleeghuis.", "afgehandeld": false, "door": null, "aangemaakt": "2026-10-09T21:30:00Z"}}, "instellingen": {"algemeen": {"dag": 5}}};
+let data;
+function clone(x){return JSON.parse(JSON.stringify(x))}
+function load(){try{const r=localStorage.getItem(KEY);if(r)return JSON.parse(r)}catch(_){}return clone(SEED)}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(_){}}
+data=load();
+const subs=new Set();
+function notify(){subs.forEach(fn=>{try{fn()}catch(e){console.error(e)}})}
+window.addEventListener("storage",e=>{if(e.key===KEY){data=load();notify()}});
+function col(c){return data[c]||(data[c]={})}
+function merge(a,b){const o=Object.assign({},a);for(const k in b){const v=b[k];if(v&&typeof v==="object"&&!Array.isArray(v)&&o[k]&&typeof o[k]==="object"&&!Array.isArray(o[k]))o[k]=merge(o[k],v);else o[k]=v}return o}
+function snapDoc(id,body){return {id,exists:body!==undefined,data:()=>body===undefined?undefined:clone(body),metadata:{fromCache:false,hasPendingWrites:false}}}
+function rid(){return Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4)}
+function query(c,filters,order,lim){
+  const run=()=>{let docs=Object.entries(col(c)).map(([id,b])=>({id,b}));
+    filters.forEach(([f,op,v])=>{docs=docs.filter(x=>op==="=="?x.b[f]===v:op==="!="?x.b[f]!==v:true)});
+    if(order){const f=order[0],dir=order[1];docs.sort((x,y)=>{const a=x.b[f],b=y.b[f];if(a===b)return 0;if(a==null)return 1;if(b==null)return -1;return (a<b?-1:1)*(dir==="desc"?-1:1)})}
+    else docs.sort((x,y)=>x.id<y.id?-1:1);
+    if(lim)docs=docs.slice(0,lim);
+    const ds=docs.map(x=>snapDoc(x.id,x.b));return {docs:ds,size:ds.length,empty:!ds.length,docChanges:()=>[],metadata:{fromCache:false,hasPendingWrites:false}}};
+  return {
+    where:(f,op,v)=>query(c,filters.concat([[f,op,v]]),order,lim),
+    orderBy:(f,dir)=>query(c,filters,[f,dir||"asc"],lim),
+    limit:n=>query(c,filters,order,n),
+    get:async()=>run(),
+    onSnapshot:(next)=>{const fn=()=>next(run());subs.add(fn);setTimeout(fn,0);return ()=>subs.delete(fn)}
+  };
+}
+function docRef(c,id){return {id,path:c+"/"+id,
+  get:async()=>snapDoc(id,col(c)[id]),
+  set:async b=>{col(c)[id]=clone(b);save();notify()},
+  update:async b=>{if(col(c)[id]===undefined)throw {code:"invalid_argument",message:"bestaat niet"};col(c)[id]=merge(col(c)[id],clone(b));save();notify()},
+  delete:async()=>{delete col(c)[id];save();notify()},
+  onSnapshot:next=>{const fn=()=>next(snapDoc(id,col(c)[id]));subs.add(fn);setTimeout(fn,0);return ()=>subs.delete(fn)}}}
+const db={collection:c=>Object.assign(query(c,[],null,0),{path:c,doc:id=>docRef(c,id||rid()),add:async b=>{const id=rid();col(c)[id]=clone(b);save();notify();return docRef(c,id)}}),
+  doc:p=>{const i=p.lastIndexOf("/");return docRef(p.slice(0,i),p.slice(i+1))}};
+const user={me:async()=>({id:"demo-leider",name:"",isOwner:true,canEdit:true}),can:async()=>true,profiles:async ids=>{const o={};[].concat(ids).forEach(i=>{o[i]={id:i,name:"",isMe:i==="demo-leider"}});return o}};
+const downloads={save:async({filename,data})=>{const b=data instanceof Blob?data:new Blob([data]);const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=String(filename).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9 ._-]/g,"");document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);return {status:"saved"}}};
+window.claude={use:async n=>({db,user,downloads})[n]||null};
+window.demoReset=function(){data=clone(SEED);save();notify()};
+})();
+</script>
+<script>
+(function(){
+"use strict";
+const PAGE_URL=location.origin+location.pathname;
+const MOODS={1:"Zwaar",2:"Matig",3:"Oké",4:"Goed",5:"Top"};
+const MOOD_DESC={1:"Trekt zich terug, emotioneel, of zegt zelf dat het slecht gaat",2:"Stiller of minder betrokken dan normaal voor deze jongere",3:"Zoals je hem of haar kent, doet mee",4:"Actief, betrokken, zoekt contact",5:"Enthousiast, neemt initiatief of helpt anderen"};
+const STATUS=[["aanwezig","Aanwezig"],["afgemeld","Afgemeld"],["afwezig","Afwezig"]];
+const SOORTEN={gesprek:"Gesprek",aandacht:"Aandachtspunt",gebed:"Gebedspunt",ouders:"Contact ouders",compliment:"Compliment"};
+const VIEWS=["leiding","dashboard","jongeren","toestemming"];
+const S={view:"leiding",dossier:null,dag:5,datumGekozen:false,datum:sessionDate(5),periode:"8",notesF:"open",zoek:"",showQr:false,
+  jongeren:[],sessies:{},notities:[],toest:{},loaded:{j:false,s:false},
+  canWrite:true,me:null,noteFor:null,wipeArmed:false,scanned:{},justScanned:null};
+let db=null,user=null;
+
+/* helpers */
+function pad(n){return String(n).padStart(2,"0")}
+function iso(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function parse(s){const p=s.split("-").map(Number);return new Date(p[0],p[1]-1,p[2])}
+function sessionDate(dag){if(dag==null)dag=5;const d=new Date();d.setDate(d.getDate()+((dag-d.getDay()+7)%7));return iso(d)}
+const DAGEN=["zondag","maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag"];
+function shift(s,n){const d=parse(s);d.setDate(d.getDate()+n);return iso(d)}
+function fmtLong(s){return parse(s).toLocaleDateString("nl-NL",{weekday:"long",day:"numeric",month:"long"})}
+function fmtShort(s){return parse(s).toLocaleDateString("nl-NL",{day:"numeric",month:"short"})}
+function fmtTime(t){if(!t)return"";const d=new Date(t);return pad(d.getHours())+":"+pad(d.getMinutes())}
+function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function pct(a,b){return b?Math.round(a/b*100):null}
+function $(s,r){return (r||document).querySelector(s)}
+let tt;function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>{t.hidden=true},2600)}
+function actief(){return S.jongeren.filter(j=>j.actief!==false).sort((a,b)=>a.naam.localeCompare(b.naam,"nl"))}
+function jById(id){return S.jongeren.find(j=>j.id===id)}
+function ent(datum,jid){const s=S.sessies[datum];return (s&&s.deelnemers&&s.deelnemers[jid])||{}}
+function hasConsent(jid){const t=S.toest[jid];return !!(t&&!t.ingetrokken)}
+function moodHtml(m){return m?`<span class="mood"><i style="background:var(--m${m})"></i>${MOODS[m]}</span>`:""}
+function regDates(){return Object.values(S.sessies).filter(s=>Object.values(s.deelnemers||{}).some(e=>e&&e.status)).map(s=>s.datum).sort()}
+function qrImg(jid,cell){try{const q=qrcode(0,"M");q.addData(PAGE_URL+"#j-"+jid);q.make();return q.createImgTag(cell||4,2).replace("<img ",'<img alt="Persoonlijke QR-code" ')}catch(_){return '<span style="font-size:.8rem">QR niet beschikbaar</span>'}}
+function leeftijd(geb,op){if(!geb)return null;const g=parse(geb),d=parse(op||iso(new Date()));let a=d.getFullYear()-g.getFullYear();if(d.getMonth()<g.getMonth()||(d.getMonth()===g.getMonth()&&d.getDate()<g.getDate()))a--;return a}
+function volgendeVerjaardag(geb,vanaf){if(!geb)return null;const g=parse(geb),v=parse(vanaf);let n=new Date(v.getFullYear(),g.getMonth(),g.getDate());if(n<v)n=new Date(v.getFullYear()+1,g.getMonth(),g.getDate());return n}
+function dagenTot(geb,vanaf){const n=volgendeVerjaardag(geb,vanaf);return n==null?null:Math.round((n-parse(vanaf))/864e5)}
+function jarigRond(geb,datum){if(!geb)return false;const t=dagenTot(geb,shift(datum,-3));return t!=null&&t<=6}
+function fmtVerjaardag(geb){return parse(geb).toLocaleDateString("nl-NL",{day:"numeric",month:"long"})}
+function qrObj(jid){const q=qrcode(0,"M");q.addData(PAGE_URL+"#j-"+jid);q.make();return q}
+function cardBlob(j){return new Promise((res,rej)=>{const q=qrObj(j.id),n=q.getModuleCount(),W=600,H=760,pad=50,cell=(W-2*pad)/n;
+  const c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");x.fillStyle="#ffffff";x.fillRect(0,0,W,H);x.fillStyle="#111111";
+  for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))x.fillRect(Math.floor(pad+k*cell),Math.floor(pad+r*cell),Math.ceil(cell),Math.ceil(cell));
+  x.textAlign="center";x.font="700 40px 'Bricolage Grotesque', sans-serif";x.fillText(j.naam,W/2,H-110,W-60);
+  x.fillStyle="#596577";x.font="400 22px 'Atkinson Hyperlegible', sans-serif";x.fillText("JONGEREN EECD · PURMEREND",W/2,H-62);
+  c.toBlob(b=>b?res(b):rej(new Error("png")),"image/png")})}
+function pdfAll(js){const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"});const cw=63,chh=70,mx=(210-3*cw)/2,my=(297-4*chh)/2;
+  js.forEach((j,i)=>{if(i&&i%12===0)doc.addPage();const k=i%12,x0=mx+(k%3)*cw,y0=my+Math.floor(k/3)*chh;
+    doc.setDrawColor(190);doc.setLineDashPattern([1.5,1.5],0);doc.rect(x0,y0,cw,chh);doc.setLineDashPattern([],0);
+    const q=qrObj(j.id),n=q.getModuleCount(),qs=46,cell=qs/n,qx=x0+(cw-qs)/2,qy=y0+5;doc.setFillColor(0,0,0);
+    for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))doc.rect(qx+c*cell,qy+r*cell,cell+0.03,cell+0.03,"F");
+    doc.setTextColor(20);doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text(j.naam,x0+cw/2,y0+58,{align:"center",maxWidth:cw-6});
+    doc.setFont("helvetica","normal");doc.setFontSize(7);doc.setTextColor(100);doc.text("JONGEREN EECD · PURMEREND",x0+cw/2,y0+64,{align:"center"})});
+  return doc.output("blob")}
+let dl=null;
+async function offer(filename,make){
+  if(!dl){toast("Downloaden lukt niet in deze browser.");return}
+  let data;try{data=await make()}catch(e){console.error(e);toast("Het bestand maken lukte niet.");return}
+  try{await dl.save({filename,data})}catch(e){if(e&&e.code==="declined")return;if(e&&e.code==="rate_limited"){toast("Er staat al een download klaar om te bevestigen.");return}toast("Downloaden lukte niet.")}}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-dl]");if(b){const j=jById(b.dataset.dl);if(j)offer("QR "+j.naam+".png",()=>cardBlob(j));return}
+  if(e.target.closest("#dl-all")){if(!window.jspdf){toast("PDF-maker niet geladen. Laad de pagina opnieuw.");return}offer("QR-kaarten jongeren.pdf",()=>Promise.resolve(pdfAll(actief())))}});
+function qrCard(j,cell){return `<div class="qrkaart">${qrImg(j.id,cell)}<b>${esc(j.naam)}</b><span>Jongeren EECD</span></div>`}
+function stats(jid,dates){let a=0,n=0,qv=0,last=null;dates.forEach(d=>{const e=ent(d,jid);if(e.status){n++;if(e.status==="aanwezig"){a++;last=d;if(e.via==="qr")qv++}}});return {a,n,qv,last,p:pct(a,n)}}
+
+/* schrijven */
+const q={};function enqueue(k,fn){const p=(q[k]||Promise.resolve()).then(fn).catch(writeErr);q[k]=p;return p}
+function writeErr(e){
+  if(e&&e.code==="invalid_argument"){S.canWrite=false;banner();toast("Je hebt alleen leesrechten.")}
+  else if(e&&e.code==="quota_exceeded")toast("De opslag is vol.");
+  else toast("Opslaan lukte niet. Probeer het opnieuw.");
+  console.error(e);
+}
+function writeSessie(datum,patch){
+  if(!db||!S.canWrite)return Promise.resolve();
+  const cur=S.sessies[datum]||{datum,thema:"",les:"",deelnemers:{}};
+  const next=Object.assign({},cur,patch,{deelnemers:Object.assign({},cur.deelnemers)});
+  if(patch.deelnemers)for(const k in patch.deelnemers)next.deelnemers[k]=Object.assign({},cur.deelnemers&&cur.deelnemers[k],patch.deelnemers[k]);
+  S.sessies[datum]=next;render();
+  return enqueue(datum,async()=>{
+    const ref=db.collection("sessies").doc(datum);const snap=await ref.get();
+    const m={bijgewerkt:new Date().toISOString()};
+    if(!snap.exists)await ref.set(Object.assign({datum,thema:"",les:"",deelnemers:{}},patch,m));
+    else await ref.update(Object.assign({},patch,m));
+  });
+}
+function setStatus(jid,v,via){const cur=ent(S.datum,jid);
+  return writeSessie(S.datum,{deelnemers:{[jid]:cur.status===v&&!via?{status:null}:{status:v,via:via||cur.via||"leiding",tijd:cur.tijd||new Date().toISOString(),door:S.me&&S.me.id||null}}})}
+function addNote(jid,soort,tekst){if(!db||!tekst)return Promise.resolve();
+  return db.collection("notities").add({jid,datum:S.datum,soort,tekst,afgehandeld:false,door:S.me&&S.me.id||null,aangemaakt:new Date().toISOString()}).then(()=>toast("Notitie opgeslagen")).catch(writeErr)}
+function statusSeg(jid,st){const dis=S.canWrite?"":"disabled";return `<div class="seg" role="group" aria-label="Status">${STATUS.map(([v,l])=>`<button type="button" data-act="status" data-v="${v}" aria-pressed="${st===v}" ${dis}>${l}</button>`).join("")}</div>`}
+
+/* ---------- Vandaag ---------- */
+function renderLeiding(){
+  const el=$("#v-leiding");
+  if(!el.dataset.built){
+    el.innerHTML=`<div class="today-grid">
+      <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+        <div class="card" style="display:grid;gap:12px">
+          <div class="datebar"><button type="button" class="arrow" id="d-prev" aria-label="Vorige week">‹</button>
+            <div class="day" id="d-label"></div><button type="button" class="arrow" id="d-next" aria-label="Volgende week">›</button></div>
+          <label class="field" for="s-dag" style="flex-direction:row;align-items:center;gap:8px">Vaste dag<select id="s-dag" style="width:auto">${DAGEN.map((d,i)=>`<option value="${i}">${d}</option>`).join("")}</select></label>
+          <div class="lesrow">
+            <label class="field" for="s-thema">Thema<input type="text" id="s-thema" placeholder="Bijv. Profetische tijden"></label>
+            <label class="field" for="s-les">Onderwerp vandaag<input type="text" id="s-les" placeholder="Bijv. Daniël in Babylon"></label></div>
+          <div class="tally" id="tally"></div>
+        </div>
+        <ul class="rows" id="rows"></ul>
+        <div style="display:flex;justify-content:flex-end"><button type="button" class="btn danger" id="wipe">Deze bijeenkomst leegmaken</button></div>
+      </div>
+      <aside class="card qrcard">
+        <h2>Inchecken met QR</h2>
+        <p class="small" style="margin:0">Tik op Scan kaart en richt de camera op de QR-kaart. Het dossier opent en de jongere staat direct op aanwezig.</p>
+        <p class="small muted" style="margin:0">Werkt voor iedereen van de leiding met toegang tot deze pagina.</p>
+        <button type="button" class="btn primary" id="scan-aside">Scan kaart</button>
+        <button type="button" class="btn" id="to-cards">QR-kaarten bekijken</button>
+      </aside></div>`;
+    el.dataset.built="1";
+    $("#d-prev").onclick=()=>{S.datum=shift(S.datum,-7);S.datumGekozen=true;S.wipeArmed=false;render()};
+    $("#d-next").onclick=()=>{S.datum=shift(S.datum,7);S.datumGekozen=true;S.wipeArmed=false;render()};
+    $("#s-dag").onchange=async e=>{const v=Number(e.target.value);S.dag=v;S.datum=sessionDate(v);S.datumGekozen=false;render();
+      if(db&&S.canWrite){try{await db.collection("instellingen").doc("algemeen").set({dag:v,bijgewerkt:new Date().toISOString()});toast("Vaste dag: "+DAGEN[v])}catch(err){writeErr(err)}}};
+    $("#s-thema").onchange=e=>writeSessie(S.datum,{thema:e.target.value.trim()});
+    $("#s-les").onchange=e=>writeSessie(S.datum,{les:e.target.value.trim()});
+    $("#scan-aside").onclick=()=>$("#scan-btn").click();
+    $("#to-cards").onclick=()=>{S.showQr=true;go("jongeren")};
+    $("#rows").onclick=e=>{const li=e.target.closest("[data-id]");if(!li)return;const b=e.target.closest("[data-act]");
+      if(b&&b.dataset.act==="status")setStatus(li.dataset.id,b.dataset.v);
+      else if(b&&b.dataset.act==="note")openNote(li.dataset.id);
+      else if(e.target.closest(".naam"))go("j-"+li.dataset.id)};
+    $("#wipe").onclick=async()=>{
+      if(!S.wipeArmed){S.wipeArmed=true;render();return}
+      S.wipeArmed=false;const d=S.datum,s=S.sessies[d]||{};
+      try{if(db)await db.collection("sessies").doc(d).set({datum:d,thema:s.thema||"",les:s.les||"",deelnemers:{},bijgewerkt:new Date().toISOString()});S.scanned={};toast("Bijeenkomst leeggemaakt")}catch(e){writeErr(e)}
+      render()};
+  }
+  const s=S.sessies[S.datum]||{};
+  $("#d-label").textContent=fmtLong(S.datum);const sd=$("#s-dag");if(document.activeElement!==sd)sd.value=String(S.dag);sd.disabled=!S.canWrite;
+  [["s-thema","thema"],["s-les","les"]].forEach(([id,k])=>{const i=$("#"+id);if(document.activeElement!==i)i.value=s[k]||"";i.disabled=!S.canWrite});
+  $("#wipe").textContent=S.wipeArmed?"Zeker weten? Tik nogmaals":"Deze bijeenkomst leegmaken";$("#wipe").hidden=!S.canWrite;
+  const js=actief();const c={aanwezig:0,afgemeld:0,afwezig:0,leeg:0,qr:0};
+  js.forEach(j=>{const e=ent(S.datum,j.id);c[e.status||"leeg"]++;if(e.status==="aanwezig"&&e.via==="qr")c.qr++});
+  $("#tally").innerHTML=js.length?`<span class="t-ok">${c.aanwezig} aanwezig</span><span class="t-qr">${c.qr} via QR</span><span class="t-warn">${c.afgemeld} afgemeld</span><span class="t-bad">${c.afwezig} afwezig</span><span class="muted">${c.leeg} open</span>`:"";
+  const rows=$("#rows");
+  if(!S.loaded.j){rows.innerHTML=`<li class="empty">Gegevens laden…</li>`;return}
+  if(!js.length){rows.innerHTML=`<li class="empty"><b>Nog geen jongeren</b>Voeg jongeren toe op het tabblad Jongeren.</li>`;return}
+  const missers=missed3();
+  rows.innerHTML=js.map(j=>{const e=ent(S.datum,j.id);const st=e.status||"";
+    return `<li class="row ${st?"s-"+st:""}" data-id="${esc(j.id)}">
+      <div><button type="button" class="naam" style="background:none;border:0;padding:0;text-align:left">${esc(j.naam)} ›</button><div class="meta">
+        ${st==="aanwezig"&&e.via==="qr"?`<span class="pill qr">QR ${fmtTime(e.tijd)}</span>`:""}
+        ${moodHtml(e.stemming)}
+        ${hasConsent(j.id)?"":'<span class="pill warn">Geen toestemming</span>'}
+        ${missers.has(j.id)?'<span class="pill bad">3 weken gemist</span>':""}
+        ${moodSignal(j.id)?`<span class="pill warn">${moodSignal(j.id)}</span>`:""}
+        ${jarigRond(j.geboortedatum,S.datum)?`<span class="pill ok">Jarig ${fmtVerjaardag(j.geboortedatum)}</span>`:""}</div></div>
+      ${statusSeg(j.id,st)}
+      <div class="act"><button type="button" class="btn ghost" data-act="note" ${S.canWrite?"":"disabled"}>+ Notitie</button></div></li>`}).join("");
+}
+function missed3(){const out=new Set();const ds=regDates().filter(d=>d<=iso(new Date())).slice(-3);if(ds.length<3)return out;
+  actief().forEach(j=>{if(ds.every(d=>{const s=ent(d,j.id).status;return s==="afwezig"||s==="afgemeld"}))out.add(j.id)});return out}
+/* indruk-signaal: vergelijkt met de jongere zelf, niet met de groep */
+function moodSignal(jid){const ms=regDates().map(d=>ent(d,jid).stemming).filter(Boolean);const n=ms.length;if(!n)return null;
+  if(n>=2&&ms[n-1]<=2&&ms[n-2]<=2)return "2× lage indruk";
+  const prev=ms.slice(Math.max(0,n-7),n-1);
+  if(prev.length>=3){const avg=prev.reduce((a,b)=>a+b,0)/prev.length;if(ms[n-1]<=avg-2)return "Indruk gedaald"}
+  return null}
+
+/* notitiepaneel (vanuit Vandaag) */
+function openNote(jid){S.noteFor=jid;$("#note-title").textContent="Notitie: "+((jById(jid)||{}).naam||"");
+  let sel=$("#note-soort");if(!sel){$("#note-tekst").closest("label").insertAdjacentHTML("beforebegin",`<label class="field" for="note-soort">Soort<select id="note-soort">${Object.entries(SOORTEN).map(([v,l])=>`<option value="${v}">${l}</option>`).join("")}</select></label>`)}
+  $("#note-tekst").value="";$("#sheet").hidden=false;setTimeout(()=>$("#note-tekst").focus(),30)}
+function closeNote(){$("#sheet").hidden=true}
+$("#note-cancel").onclick=closeNote;$("#sheet").onclick=e=>{if(e.target.id==="sheet")closeNote()};
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeNote()});
+$("#note-form").onsubmit=e=>{e.preventDefault();const t=$("#note-tekst").value.trim();if(!t)return;closeNote();addNote(S.noteFor,$("#note-soort").value,t)};
+
+/* ---------- Dashboard ---------- */
+function renderDash(){
+  const el=$("#v-dashboard");
+  if(!el.dataset.built){
+    el.innerHTML=`<div class="filters"><h1 style="flex:1 1 auto">Overzicht</h1>
+        <select id="per" aria-label="Periode" style="width:auto"><option value="4">Laatste 4 bijeenkomsten</option><option value="8">Laatste 8 bijeenkomsten</option><option value="all">Alles</option></select></div>
+      <div class="kpis" id="kpis" style="margin-top:14px"></div>
+      <div class="section"><div class="section-head"><h2>Opkomst en indruk per bijeenkomst</h2>
+        <div class="legend"><span><span class="sw" style="background:var(--accent)"></span>Ingecheckt via QR</span><span><span class="sw" style="background:var(--qr);opacity:.55"></span>Handmatig</span><span><span class="sw" style="background:var(--warn);height:3px;vertical-align:3px"></span>Gem. indruk leiding (1–5)</span></div></div>
+        <div class="card chart-box" id="chart"></div></div>
+      <div class="section"><div class="section-head"><h2>Per jongere</h2><span class="small muted">Bolletjes: laatste 8 bijeenkomsten, oud → nieuw. Blauw = via QR. Tik op een naam voor het dossier.</span></div>
+        <div class="tbl-wrap" id="ptbl"></div></div>
+      <div class="section"><div class="section-head"><h2>Notities</h2><div class="chips" id="nf"></div></div><ul class="feed" id="notities"></ul></div>`;
+    el.dataset.built="1";
+    $("#per").onchange=e=>{S.periode=e.target.value;render()};
+    $("#nf").onclick=e=>{const b=e.target.closest("[data-f]");if(b){S.notesF=b.dataset.f;render()}};
+    $("#ptbl").onclick=e=>{const a=e.target.closest("[data-open]");if(a)go("j-"+a.dataset.open)};
+    $("#notities").onchange=onNoteCheck;
+  }
+  $("#per").value=S.periode;
+  let ds=regDates();if(S.periode!=="all")ds=ds.slice(-Number(S.periode));
+  const js=actief();let pres=0,reg=0,qrN=0,mSum=0,mN=0;const per=[];
+  ds.forEach(d=>{let a=0,qv=0,ms=0,mn=0;Object.values((S.sessies[d]||{}).deelnemers||{}).forEach(e=>{if(!e||!e.status)return;reg++;
+      if(e.status==="aanwezig"){a++;if(e.via==="qr")qv++}if(e.stemming){ms+=e.stemming;mn++}});
+    pres+=a;qrN+=qv;mSum+=ms;mN+=mn;per.push({d,qr:qv,lei:a-qv,m:mn?ms/mn:null})});
+  const consent=js.filter(j=>hasConsent(j.id)).length;
+  const openN=S.notities.filter(n=>!n.afgehandeld).length;
+  const k=(l,v,s)=>`<div class="kpi"><div class="lbl">${l}</div><div class="val">${v}</div><div class="sub">${s}</div></div>`;
+  const nl=x=>x.toFixed(1).replace(".",",");
+  $("#kpis").innerHTML=k("Jongeren",js.length,"in de groep")+
+    k("Gem. opkomst",ds.length?nl(pres/ds.length):"–",`per bijeenkomst, ${ds.length} keer`)+
+    k("Aanwezig",pct(pres,reg)==null?"–":pct(pres,reg)+"%","van geregistreerden")+
+    k("Via QR",pct(qrN,pres)==null?"–":pct(qrN,pres)+"%","van aanwezigen")+
+    k("Indruk",mN?nl(mSum/mN):"–","gemiddeld op 1–5")+
+    k("Toestemming",`${consent}/${js.length}`,"formulieren ontvangen")+
+    k("Open punten",openN,"notities niet afgehandeld");
+  $("#chart").innerHTML=per.length?chart(per):`<div class="empty" style="border:0">Nog geen bijeenkomsten geregistreerd.</div>`;
+  const missers=missed3();const all=regDates();
+  $("#ptbl").innerHTML=js.length?`<table><thead><tr><th>Naam</th><th>Laatste 8</th><th class="num">Aanwezig</th><th class="num">Via QR</th><th>Indruk (4 wk)</th><th>Toestemming</th><th>Signaal</th></tr></thead><tbody>${
+    js.map(j=>{const st=stats(j.id,ds);
+      const recent=all.slice(-4).map(d=>ent(d,j.id).stemming).filter(Boolean);const mAvg=recent.length?Math.round(recent.reduce((x,y)=>x+y,0)/recent.length):null;
+      const msig=moodSignal(j.id);
+      const openK=S.notities.filter(n=>n.jid===j.id&&!n.afgehandeld).length;
+      const dots=all.slice(-8).map(d=>{const e=ent(d,j.id);const c=e.status==="aanwezig"&&e.via==="qr"?"qr":(e.status||"");return `<i class="${c}" title="${fmtShort(d)}: ${e.status||"open"}${e.via==="qr"?" (QR)":""}"></i>`}).join("");
+      const sig=(missers.has(j.id)?'<span class="pill bad">3 weken gemist</span> ':"")+(msig?`<span class="pill warn">${msig}</span> `:"")+(openK?`<span class="pill info">${openK} open</span>`:"");
+      const t=S.toest[j.id];
+      return {s:(missers.has(j.id)||msig?0:1),n:j.naam,h:`<tr><td><button type="button" class="btn ghost" data-open="${esc(j.id)}" style="padding:0;font-weight:700">${esc(j.naam)}</button></td><td><span class="dots">${dots}</span></td>
+        <td class="num">${st.p==null?"–":st.p+"%"}</td><td class="num">${st.qv}</td>
+        <td>${mAvg?moodHtml(mAvg):'<span class="muted">–</span>'}</td>
+        <td>${hasConsent(j.id)?`<span class="pill ok">${t.door==="zelf"?"Zelf (16+)":"Ouder"}</span>`:'<span class="pill warn">Ontbreekt</span>'}</td>
+        <td>${sig||'<span class="muted">–</span>'}</td></tr>`}}).sort((x,y)=>x.s-y.s||x.n.localeCompare(y.n,"nl")).map(r=>r.h).join("")}</tbody></table>`:"";
+  $("#nf").innerHTML=[["open","Open"],["alle","Alle"]].map(([v,l])=>`<button type="button" class="chip" data-f="${v}" aria-pressed="${S.notesF===v}">${l}</button>`).join("");
+  noteFeed($("#notities"),S.notities.filter(n=>S.notesF==="alle"||!n.afgehandeld),true);
+}
+function noteFeed(ul,items,withName){
+  ul.innerHTML=items.length?items.map(n=>`<li class="${n.afgehandeld?"done":""}"><div class="head">${withName?`<b>${esc((jById(n.jid)||{}).naam||"Algemeen")}</b>`:""}<span class="pill info">${esc(SOORTEN[n.soort]||"Notitie")}</span><span>${fmtShort(n.datum)}</span>${n.door?`<span>door <span data-uid="${esc(n.door)}">…</span></span>`:""}</div>
+    <label><input type="checkbox" data-nid="${esc(n.id)}" ${n.afgehandeld?"checked":""} ${S.canWrite?"":"disabled"}> Afgehandeld</label><div class="txt">${esc(n.tekst)}</div></li>`).join(""):`<li class="empty">Geen notities.</li>`;
+  names(ul);
+}
+async function names(root){if(!user)return;const sp=[...root.querySelectorAll("[data-uid]")];if(!sp.length)return;
+  const ps=await user.profiles([...new Set(sp.map(s=>s.dataset.uid))]);sp.forEach(s=>{const p=ps[s.dataset.uid];s.textContent=p&&p.isMe?"jou":(p&&p.name)||"leiding"})}
+async function onNoteCheck(e){const cb=e.target.closest("[data-nid]");if(!cb||!db)return;
+  try{await db.collection("notities").doc(cb.dataset.nid).update({afgehandeld:cb.checked})}catch(err){cb.checked=!cb.checked;writeErr(err)}}
+function chart(rows){
+  const W=Math.max(340,rows.length*58+60),H=210,L=32,R=30,B=28,T=18,ch=H-B-T;
+  const max=Math.max(4,...rows.map(r=>r.qr+r.lei));const step=max<=10?2:5;const top=Math.ceil(max/step)*step;
+  const y=v=>T+ch-(v/top)*ch;const ym=m=>T+ch-((m-1)/4)*ch;
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Opkomst en indruk per bijeenkomst">`;
+  for(let v=0;v<=top;v+=step)s+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`;
+  [1,3,5].forEach(m=>{s+=`<text x="${W-R+6}" y="${ym(m)+4}">${m}</text>`});
+  const slot=(W-L-R)/rows.length,bw=Math.min(30,slot*.55);const pts=[];
+  rows.forEach((r,i)=>{const x=L+i*slot+(slot-bw)/2;
+    if(r.qr)s+=`<rect class="bq" x="${x}" y="${y(r.qr)}" width="${bw}" height="${y(0)-y(r.qr)}" rx="2"><title>Via QR: ${r.qr}</title></rect>`;
+    if(r.lei)s+=`<rect class="bl" x="${x}" y="${y(r.qr+r.lei)}" width="${bw}" height="${y(r.qr)-y(r.qr+r.lei)}" rx="2"><title>Handmatig: ${r.lei}</title></rect>`;
+    s+=`<text class="vlab" x="${x+bw/2}" y="${y(r.qr+r.lei)-5}" text-anchor="middle">${r.qr+r.lei}</text><text x="${x+bw/2}" y="${H-9}" text-anchor="middle">${fmtShort(r.d)}</text>`;
+    if(r.m)pts.push([x+bw/2,ym(r.m),r.m])});
+  if(pts.length>1)s+=`<polyline class="mline" points="${pts.map(p=>p[0]+","+p[1]).join(" ")}"/>`;
+  pts.forEach(p=>{s+=`<circle class="mdot" cx="${p[0]}" cy="${p[1]}" r="3.5"><title>Indruk ${p[2].toFixed(1)}</title></circle>`});
+  return s+"</svg>";
+}
+
+/* ---------- Jongeren ---------- */
+function renderJongeren(){
+  const el=$("#v-jongeren");
+  if(!el.dataset.built){
+    el.innerHTML=`<div class="filters"><h1 style="flex:1 1 auto">Jongeren</h1>
+        <button type="button" class="btn" id="qr-toggle"></button></div>
+      <form class="card addform" id="addj" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+        <label class="field" for="nj" style="flex:1 1 220px">Nieuwe jongere<input type="text" id="nj" required placeholder="Voor- en achternaam"></label>
+        <label class="field" for="njg" style="flex:0 1 170px">Geboortedatum (optioneel)<input type="date" id="njg"></label>
+        <button class="btn primary" type="submit">Toevoegen</button></form>
+      <input type="search" id="jz" placeholder="Zoek op naam" aria-label="Zoek op naam" style="margin-top:14px">
+      <div id="jbody" style="margin-top:12px"></div>`;
+    el.dataset.built="1";
+    $("#qr-toggle").onclick=()=>{S.showQr=!S.showQr;render()};
+    $("#jz").oninput=e=>{S.zoek=e.target.value;render()};
+    $("#addj").onsubmit=async e=>{e.preventDefault();const n=$("#nj").value.trim();if(!n||!db)return;
+      const g=$("#njg").value||null;
+      try{await db.collection("jongeren").add({naam:n,geboortedatum:g,actief:true,sinds:iso(new Date()),aangemaakt:new Date().toISOString()});$("#nj").value="";$("#njg").value="";toast(n+" toegevoegd")}catch(err){writeErr(err)}};
+    $("#jbody").onclick=e=>{const b=e.target.closest("[data-open]");if(b)go("j-"+b.dataset.open)};
+  }
+  $("#qr-toggle").textContent=S.showQr?"Lijst tonen":"QR-kaarten tonen";
+  $("#addj").hidden=!S.canWrite;
+  const js=actief().filter(j=>j.naam.toLowerCase().includes(S.zoek.toLowerCase()));
+  const all=regDates();
+  if(!S.loaded.j){$("#jbody").innerHTML=`<div class="empty">Laden…</div>`;return}
+  if(!js.length){$("#jbody").innerHTML=`<div class="empty">${S.zoek?"Geen naam gevonden.":"<b>Nog geen jongeren</b>Voeg hierboven de eerste toe."}</div>`;return}
+  if(S.showQr){$("#jbody").innerHTML=`<div class="card" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px"><p class="small" style="margin:0;flex:1 1 260px">Print de kaarten (12 per A4, met snijlijnen) of stuur een jongere zijn eigen kaart als afbeelding. Scan altijd met de camera van een <b>ander</b> apparaat dan waarop de code staat.</p><button type="button" class="btn primary" id="dl-all">Alle kaarten als PDF</button></div><div class="qrgrid">${js.map(j=>`<div class="qritem">${qrCard(j,4)}<button type="button" class="btn" data-dl="${esc(j.id)}">Kaart downloaden</button></div>`).join("")}</div>`;return}
+  const vandaag=iso(new Date());
+  const jarig=actief().filter(j=>j.geboortedatum&&dagenTot(j.geboortedatum,vandaag)<=30).sort((a,b)=>dagenTot(a.geboortedatum,vandaag)-dagenTot(b.geboortedatum,vandaag));
+  const archief=S.jongeren.filter(j=>j.actief===false).sort((a,b)=>a.naam.localeCompare(b.naam,"nl"));
+  $("#jbody").innerHTML=(jarig.length&&!S.zoek?`<div class="card" style="margin-bottom:12px"><h2 style="font-size:1rem">Jarig in de komende 30 dagen</h2><div class="chips" style="margin-top:8px">${jarig.map(j=>{const t=dagenTot(j.geboortedatum,vandaag);return `<button type="button" class="chip" data-open="${esc(j.id)}">${esc(j.naam.split(" ")[0])} · ${t===0?"vandaag":fmtVerjaardag(j.geboortedatum)} (${leeftijd(j.geboortedatum,vandaag)+(t===0?0:1)})</button>`}).join("")}</div></div>`:"")+
+  `<ul class="jlist">${js.map(j=>{const st=stats(j.id,all.slice(-8));const openK=S.notities.filter(n=>n.jid===j.id&&!n.afgehandeld).length;const lt=leeftijd(j.geboortedatum);
+    return `<li><div><div class="naam">${esc(j.naam)}${lt!=null?` <span class="muted" style="font-weight:400">· ${lt} jaar</span>`:""}</div><div class="meta"><span>${st.p==null?"Nog geen registraties":st.p+"% aanwezig (8 wk)"}</span>
+      ${hasConsent(j.id)?'<span class="pill ok">Toestemming</span>':'<span class="pill warn">Geen toestemming</span>'}${openK?`<span class="pill info">${openK} open</span>`:""}</div></div>
+      <button type="button" class="btn" data-open="${esc(j.id)}">Dossier</button></li>`}).join("")}</ul>`+
+    (archief.length?`<details class="section"><summary>Gearchiveerd (${archief.length})</summary><ul class="jlist" style="margin-top:10px">${archief.map(j=>`<li><div class="naam">${esc(j.naam)}</div><button type="button" class="btn" data-open="${esc(j.id)}">Openen</button></li>`).join("")}</ul></details>`:"");
+}
+
+/* ---------- Dossier (ook na scannen) ---------- */
+function renderDossier(){
+  const el=$("#v-dossier");const j=jById(S.dossier);
+  if(el.contains(document.activeElement)&&/^(TEXTAREA|INPUT)$/.test(document.activeElement.tagName))return;
+  if(!S.loaded.j){el.innerHTML=`<div class="empty">Dossier laden…</div>`;return}
+  if(!j){el.innerHTML=`<div class="empty"><b>Deze QR-code hoort bij niemand in de groep</b>Misschien is de jongere verwijderd. <button type="button" class="btn ghost" id="back">Naar jongeren</button></div>`;$("#back").onclick=()=>go("jongeren");return}
+  const e=ent(S.datum,j.id);const st=e.status||"";const all=regDates();const s8=stats(j.id,all.slice(-8)),sAll=stats(j.id,all);
+  const t=S.toest[j.id];const notes=S.notities.filter(n=>n.jid===j.id);
+  const scanned=S.justScanned===j.id;
+  const pm=S.pendingMood&&S.pendingMood.jid===j.id?S.pendingMood:null;
+  const shown=pm?pm.m:e.stemming;const msig=moodSignal(j.id);
+  const desc=shown?`<b>${MOODS[shown]}:</b> ${MOOD_DESC[shown]}`:"Vergelijk met hoe je deze jongere normaal kent, niet met de groep.";
+  el.innerHTML=`<div style="display:flex;flex-direction:column;gap:16px;max-width:760px;margin:0 auto">
+    <button type="button" class="btn ghost" id="back" style="align-self:flex-start;padding-left:0">‹ Alle jongeren</button>
+    <div class="dhead"><div><h1>${esc(j.naam)}</h1><div class="meta" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+        ${hasConsent(j.id)?`<span class="pill ok">Toestemming ${t.door==="zelf"?"zelf (16+)":"ouder"} · ${fmtShort(t.datum)}</span>`:'<span class="pill warn">Geen toestemming</span>'}
+        ${missed3().has(j.id)?'<span class="pill bad">3 weken gemist</span>':""}${msig?`<span class="pill warn">${msig}</span>`:""}${j.actief===false?'<span class="pill info">Gearchiveerd</span>':""}${leeftijd(j.geboortedatum)!=null?`<span class="pill info">${leeftijd(j.geboortedatum)} jaar</span>`:""}</div></div>
+      <div style="display:grid;gap:6px;justify-items:center">${qrCard(j,3)}<button type="button" class="btn" data-dl="${esc(j.id)}">Kaart downloaden</button></div></div>
+    <div class="scanbox ${st==="aanwezig"?"ok":""}">
+      ${st==="aanwezig"?`<div class="check" aria-hidden="true">✓</div>`:""}
+      <div class="grow"><b>${fmtLong(S.datum)}</b><div class="small">${st==="aanwezig"?`Aanwezig${e.via==="qr"?" via QR":""} om ${fmtTime(e.tijd)}${scanned?" · zojuist gescand":""}`:st?STATUS.find(x=>x[0]===st)[1]:"Nog niet geregistreerd"}</div></div>
+      ${st!=="aanwezig"?`<button type="button" class="btn primary" id="ci" ${S.canWrite?"":"disabled"}>Inchecken</button>`:""}
+    </div>
+    <div class="card" style="display:grid;gap:12px">
+      <div class="section-head"><h2>Vandaag</h2>${statusSeg(j.id,st)}</div>
+      <div><div class="small muted" style="margin-bottom:6px;font-weight:700">Indruk van de leiding <span style="font-weight:400">· alleen invullen als je de jongere vandaag zelf sprak of zag</span></div>
+        <div class="moods" role="group" aria-label="Indruk">${[1,2,3,4,5].map(m=>`<button type="button" data-m="${m}" aria-pressed="${shown===m}" title="${MOOD_DESC[m]}" ${S.canWrite?"":"disabled"}><i style="background:var(--m${m})"></i>${MOODS[m]}</button>`).join("")}</div>
+        <p class="small" style="margin:8px 0 0">${desc}</p>
+        ${pm?`<div style="display:grid;gap:8px;margin-top:10px">
+          <label class="field" for="mwhy">Wat zag je? Verplicht bij ${MOODS[pm.m].toLowerCase()}<textarea id="mwhy" placeholder="Bijv. zat apart en wilde niet meedoen met de groepsopdracht"></textarea></label>
+          <div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn" id="mcancel">Annuleren</button><button type="button" class="btn primary" id="msave">Opslaan</button></div></div>`:""}</div>
+    </div>
+    <div class="stats"><div><b>${s8.p==null?"–":s8.p+"%"}</b><small>aanwezig (8 wk)</small></div><div><b>${sAll.a}</b><small>keer aanwezig totaal</small></div>
+      <div><b>${sAll.qv}</b><small>via QR</small></div><div><b>${sAll.last?fmtShort(sAll.last):"–"}</b><small>laatst gezien</small></div></div>
+    <div class="section" style="margin-top:0"><h2>Aanwezigheid</h2><div class="card"><div class="timeline">${all.slice(-16).map(d=>{const x=ent(d,j.id);const c=x.status==="aanwezig"&&x.via==="qr"?"qr":(x.status||"");
+      return `<span><span class="dots"><i class="${c}" title="${x.status||"open"}"></i></span>${fmtShort(d)}</span>`}).join("")||'<span class="muted">Nog geen bijeenkomsten.</span>'}</div></div></div>
+    <form class="card" id="dnote" style="display:grid;gap:10px">
+      <h2>Dossier: nieuwe notitie</h2>
+      <div class="chips" id="dsoort">${Object.entries(SOORTEN).map(([v,l],i)=>`<button type="button" class="chip" data-s="${v}" aria-pressed="${i===0}">${l}</button>`).join("")}</div>
+      <label class="field" for="dtekst">Notitie<textarea id="dtekst" required placeholder="Bijv. vertelde over spanning thuis, afgesproken om volgende week bij te praten"></textarea></label>
+      <p class="small muted" style="margin:0">Geen medische of strafrechtelijke gegevens. Schrijf alsof de jongere meeleest.</p>
+      <button type="submit" class="btn primary" ${S.canWrite?"":"disabled"}>Notitie opslaan</button></form>
+    <div class="section" style="margin-top:0"><h2>Notities (${notes.length})</h2><ul class="feed" id="dnotes"></ul></div>
+    <form class="card" id="profiel" style="display:grid;gap:12px">
+      <h2>Profiel</h2>
+      <div class="lesrow">
+        <label class="field" for="p-naam">Naam<input type="text" id="p-naam" required value="${esc(j.naam)}" ${S.canWrite?"":"disabled"}></label>
+        <label class="field" for="p-geb">Geboortedatum<input type="date" id="p-geb" value="${esc(j.geboortedatum||"")}" ${S.canWrite?"":"disabled"}></label></div>
+      <p class="small muted" style="margin:0">${j.geboortedatum?`${leeftijd(j.geboortedatum)} jaar, jarig op ${fmtVerjaardag(j.geboortedatum)}. ${leeftijd(j.geboortedatum)>=16?"Mag zelf toestemming geven.":"Toestemming van een ouder of verzorger nodig."}`:"Met een geboortedatum ziet de app wie jarig is en of de jongere zelf toestemming mag geven."} In de groep sinds ${j.sinds?fmtShort(j.sinds):"onbekend"}.</p>
+      <div style="display:flex;justify-content:flex-end"><button type="submit" class="btn primary" ${S.canWrite?"":"disabled"}>Profiel opslaan</button></div>
+    </form>
+    <div class="card" style="display:grid;gap:10px;border-color:var(--bad)">
+      <h2>Archiveren of verwijderen</h2>
+      <p class="small" style="margin:0"><b>Archiveren</b> haalt de jongere uit de lijsten; alles blijft bewaard en je kunt het terugzetten. <b>Verwijderen</b> wist het profiel, alle notities, de toestemming en de aanwezigheid definitief. Doe dat als een jongere stopt en de gegevens niet meer nodig zijn.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+        <button type="button" class="btn" id="p-arch" ${S.canWrite?"":"disabled"}>${j.actief===false?"Terugzetten in de groep":"Archiveren"}</button>
+        <button type="button" class="btn danger" id="p-del" ${S.canWrite?"":"disabled"}>${S.delArmed===j.id?"Alles van "+esc(j.naam.split(" ")[0])+" definitief wissen? Tik nogmaals":"Profiel verwijderen"}</button></div>
+    </div>
+  </div>`;
+  $("#profiel").onsubmit=async ev=>{ev.preventDefault();if(!db)return;const naam=$("#p-naam").value.trim();if(!naam)return;
+    const g=$("#p-geb").value||null;if(document.activeElement)document.activeElement.blur();
+    try{await db.collection("jongeren").doc(j.id).update({naam,geboortedatum:g});toast("Profiel opgeslagen")}catch(err){writeErr(err)}};
+  $("#p-arch").onclick=async()=>{if(!db)return;const terug=j.actief===false;
+    try{await db.collection("jongeren").doc(j.id).update({actief:terug});toast(terug?j.naam+" staat weer in de groep":j.naam+" is gearchiveerd")}catch(err){writeErr(err)}};
+  $("#p-del").onclick=()=>{if(S.delArmed!==j.id){S.delArmed=j.id;render();return}S.delArmed=null;verwijderJongere(j)};
+  $("#back").onclick=()=>go("jongeren");
+  const ci=$("#ci");if(ci)ci.onclick=()=>setStatus(j.id,"aanwezig","leiding");
+  el.querySelector(".seg").onclick=ev=>{const b=ev.target.closest("[data-v]");if(b)setStatus(j.id,b.dataset.v)};
+  el.querySelector(".moods").onclick=ev=>{const b=ev.target.closest("[data-m]");if(!b)return;const m=Number(b.dataset.m);
+    if(e.stemming===m&&!pm){writeSessie(S.datum,{deelnemers:{[j.id]:{stemming:null}}});return}
+    if(m<=2){S.pendingMood={jid:j.id,m};render();setTimeout(()=>{const t=$("#mwhy");if(t)t.focus()},30);return}
+    S.pendingMood=null;writeSessie(S.datum,{deelnemers:{[j.id]:{stemming:m,stemmingDoor:S.me&&S.me.id||null}}})};
+  if(pm){
+    $("#mcancel").onclick=()=>{S.pendingMood=null;render()};
+    $("#msave").onclick=()=>{const t=$("#mwhy");const tx=t.value.trim();if(!tx){t.focus();toast("Schrijf kort op wat je zag");return}
+      S.pendingMood=null;t.blur();
+      writeSessie(S.datum,{deelnemers:{[j.id]:{stemming:pm.m,stemmingDoor:S.me&&S.me.id||null}}});
+      addNote(j.id,"aandacht",`Indruk ${MOODS[pm.m].toLowerCase()}: ${tx}`)};
+  }
+  $("#dsoort").onclick=ev=>{const b=ev.target.closest("[data-s]");if(!b)return;$("#dsoort").querySelectorAll("[data-s]").forEach(x=>x.setAttribute("aria-pressed",x===b))};
+  $("#dnote").onsubmit=ev=>{ev.preventDefault();const tx=$("#dtekst").value.trim();if(!tx)return;const so=$("#dsoort [aria-pressed=true]").dataset.s;$("#dtekst").value="";$("#dtekst").blur();addNote(j.id,so,tx)};
+  const ul=$("#dnotes");noteFeed(ul,notes,false);ul.onchange=onNoteCheck;
+}
+
+/* scannen: #j-<id> */
+function handleScan(id){
+  S.view="dossier";S.dossier=id;
+  if(S.scanned[id]||!S.loaded.j||!S.loaded.s||!S.canWrite||!db)return;
+  const j=jById(id);if(!j)return;
+  S.scanned[id]=true;
+  if(ent(S.datum,id).status!=="aanwezig"){S.justScanned=id;setStatus(id,"aanwezig","qr").then(()=>toast(j.naam.split(" ")[0]+" is ingecheckt"))}
+}
+
+/* ---------- Toestemming ---------- */
+function renderToest(){
+  const el=$("#v-toestemming");
+  if(el.contains(document.activeElement))return;
+  const js=actief();
+  el.innerHTML=`<div class="narrow">
+    <div><h1>Toestemming deelname</h1><p class="muted" style="margin:6px 0 0">Voor de jongerengroep van El Encuentro Con Dios. Jongeren van 16 jaar en ouder mogen zelf toestemming geven; onder de 16 doet een ouder of verzorger dat.</p></div>
+    <form class="card" id="tform" style="display:grid;gap:14px">
+      <label class="field" for="t-j">Naam jongere<select id="t-j" required><option value="">Kies…</option>${js.map(j=>`<option value="${esc(j.id)}">${esc(j.naam)}${hasConsent(j.id)?" (al gegeven)":""}</option>`).join("")}</select></label>
+      <fieldset><legend>Wie geeft toestemming?</legend><div class="radios">
+        <label><input type="radio" name="door" value="ouder" checked> Ouder / verzorger</label>
+        <label><input type="radio" name="door" value="zelf"> De jongere zelf (16+)</label></div></fieldset>
+      <label class="field" for="t-naam">Naam ondertekenaar<input type="text" id="t-naam" required autocomplete="off"></label>
+      <fieldset><legend>Ik geef toestemming voor</legend>
+        <label class="checkline"><input type="checkbox" id="t-reg" checked> Het bijhouden van aanwezigheid met een persoonlijke QR-kaart</label>
+        <label class="checkline"><input type="checkbox" id="t-dos" checked> Een dossier met korte notities van de leiding over hoe het gaat</label>
+        <label class="checkline"><input type="checkbox" id="t-con" checked> Contact met ouders/verzorgers als de leiding zich zorgen maakt</label></fieldset>
+      <p class="small muted" style="margin:0">De gegevens zijn alleen zichtbaar voor de leiding, worden niet gedeeld met derden en worden verwijderd als de jongere stopt. Je mag het dossier altijd inzien. Toestemming kan altijd worden ingetrokken.</p>
+      <button type="submit" class="btn primary big">Toestemming geven</button>
+    </form>
+    <div id="t-status"></div></div>`;
+  const showStatus=()=>{const jid=$("#t-j").value;const t=S.toest[jid];
+    $("#t-status").innerHTML=jid&&t&&!t.ingetrokken?`<div class="card" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="pill ok">Gegeven</span><span class="small">op ${fmtShort(t.datum)} door ${esc(t.naam)} (${t.door==="zelf"?"jongere zelf":"ouder"})</span><button type="button" class="btn danger" id="t-in" style="margin-left:auto">Intrekken</button></div>`:"";
+    const b=$("#t-in");if(b)b.onclick=async()=>{try{await db.collection("toestemmingen").doc(jid).update({ingetrokken:true,ingetrokkenOp:new Date().toISOString()});toast("Toestemming ingetrokken")}catch(err){writeErr(err)}}};
+  $("#t-j").onchange=()=>{showStatus();const j=jById($("#t-j").value);const lt=j&&leeftijd(j.geboortedatum);
+    if(lt!=null){el.querySelector(`input[name=door][value=${lt>=16?"zelf":"ouder"}]`).checked=true;
+      el.querySelector('input[name=door][value=zelf]').disabled=lt<16;
+      $("#t-status").insertAdjacentHTML("afterbegin",`<p class="small muted" style="margin:0 0 8px">${esc(j.naam.split(" ")[0])} is ${lt} jaar: ${lt>=16?"mag zelf toestemming geven.":"toestemming van een ouder of verzorger is nodig."}</p>`)}
+    else el.querySelector('input[name=door][value=zelf]').disabled=false};
+  $("#tform").onsubmit=async ev=>{ev.preventDefault();if(!db)return;const jid=$("#t-j").value;if(!jid)return;
+    const doc={jid,door:el.querySelector("input[name=door]:checked").value,naam:$("#t-naam").value.trim(),
+      registratie:$("#t-reg").checked,dossier:$("#t-dos").checked,contact:$("#t-con").checked,datum:iso(new Date()),ingetrokken:false,aangemaakt:new Date().toISOString()};
+    try{await db.collection("toestemmingen").doc(jid).set(doc);toast("Bedankt, toestemming opgeslagen");if(document.activeElement)document.activeElement.blur();render()}catch(err){writeErr(err)}};
+}
+
+/* ---------- verwijderen (AVG: alles weg) ---------- */
+async function verwijderJongere(j){
+  if(!db)return;const id=j.id;
+  try{
+    for(const n of S.notities.filter(n=>n.jid===id))await db.collection("notities").doc(n.id).delete();
+    const ns=await db.collection("notities").where("jid","==",id).get();for(const d of ns.docs)await db.collection("notities").doc(d.id).delete();
+    await db.collection("toestemmingen").doc(id).delete();
+    for(const d in S.sessies){const e=S.sessies[d].deelnemers;if(e&&e[id]!==undefined&&e[id]!==null)await enqueue(d,()=>db.collection("sessies").doc(d).update({deelnemers:{[id]:null}}))}
+    await db.collection("jongeren").doc(id).delete();
+    go("jongeren");toast(j.naam+" en alle gegevens zijn verwijderd");
+  }catch(err){writeErr(err)}
+}
+
+/* ---------- scannen via foto ---------- */
+function decodeQr(img){
+  if(typeof jsQR!=="function")return null;
+  for(const max of [1400,900,600]){
+    const sc=Math.min(1,max/Math.max(img.width,img.height));const w=Math.round(img.width*sc),h=Math.round(img.height*sc);
+    const c=document.createElement("canvas");c.width=w;c.height=h;const x=c.getContext("2d",{willReadFrequently:true});x.drawImage(img,0,0,w,h);
+    const r=jsQR(x.getImageData(0,0,w,h).data,w,h,{inversionAttempts:"attemptBoth"});if(r&&r.data)return r.data;
+  }
+  return null;
+}
+function loadImage(file){return new Promise((res,rej)=>{
+  if(window.createImageBitmap){createImageBitmap(file).then(res,()=>fallback())}else fallback();
+  function fallback(){const u=URL.createObjectURL(file);const i=new Image();i.onload=()=>{res(i);setTimeout(()=>URL.revokeObjectURL(u),1000)};i.onerror=rej;i.src=u}})}
+function handleCode(txt){
+  const m=txt&&txt.match(/#j-([A-Za-z0-9_-]+)/);
+  if(!txt){toast("Geen QR-code gevonden. Houd de kaart recht en dichterbij.");return}
+  if(!m){toast("Deze QR-code hoort niet bij de jongerengroep.");return}
+  const j=jById(m[1]);if(!j){toast("Deze kaart hoort bij niemand in de groep.");return}
+  const al=ent(S.datum,j.id).status==="aanwezig";
+  go("j-"+j.id);S.scanned[j.id]=true;
+  if(al){toast(j.naam.split(" ")[0]+" was al ingecheckt")}
+  else if(S.canWrite){S.justScanned=j.id;setStatus(j.id,"aanwezig","qr").then(()=>toast(j.naam.split(" ")[0]+" is ingecheckt"))}
+}
+let stream=null,raf=0;
+function stopLive(){cancelAnimationFrame(raf);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$("#scanview").hidden=true}
+async function startLive(){
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia))return false;
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false})}catch(e){return false}
+  const v=$("#scanvideo");v.srcObject=stream;$("#scanview").hidden=false;$("#scanmsg").textContent="Richt de camera op de QR-kaart";
+  try{await v.play()}catch(_){}
+  const c=document.createElement("canvas"),x=c.getContext("2d",{willReadFrequently:true});let last=0;
+  const tick=t=>{if(!stream)return;raf=requestAnimationFrame(tick);if(t-last<180||v.readyState<2)return;last=t;
+    const w=v.videoWidth,h=v.videoHeight;if(!w)return;const sc=Math.min(1,720/Math.max(w,h));c.width=Math.round(w*sc);c.height=Math.round(h*sc);
+    x.drawImage(v,0,0,c.width,c.height);const r=jsQR(x.getImageData(0,0,c.width,c.height).data,c.width,c.height,{inversionAttempts:"dontInvert"});
+    if(r&&r.data){if(navigator.vibrate)try{navigator.vibrate(60)}catch(_){}stopLive();handleCode(r.data)}};
+  raf=requestAnimationFrame(tick);return true;
+}
+$("#scan-btn").onclick=async()=>{if(typeof jsQR!=="function"){toast("De scanner is niet geladen. Laad de pagina opnieuw.");return}
+  if(await startLive())return;$("#scan-input").value="";$("#scan-input").click()};
+$("#scan-close").onclick=stopLive;
+$("#scan-photo").onclick=()=>{stopLive();$("#scan-input").value="";$("#scan-input").click()};
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&stream)stopLive()});
+$("#demo-reset").onclick=()=>{const b=$("#demo-reset");if(b.dataset.armed){delete b.dataset.armed;b.textContent="Demo opnieuw beginnen";window.demoReset();S.scanned={};go("leiding");toast("Demo staat weer op de beginstand")}else{b.dataset.armed="1";b.textContent="Alles terugzetten? Tik nogmaals"}};
+$("#scan-input").onchange=async e=>{
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  const btn=$("#scan-btn");btn.disabled=true;$("#scan-label").textContent="Lezen…";
+  try{
+    const img=await loadImage(f);handleCode(decodeQr(img));
+  }catch(err){console.error(err);toast("De foto kon niet worden gelezen. Probeer het opnieuw.")}
+  finally{btn.disabled=false;$("#scan-label").textContent="Scan kaart"}
+};
+
+/* ---------- routing ---------- */
+function banner(m){const b=$("#banner");if(m){b.textContent=m;b.hidden=false}else if(!S.canWrite){b.textContent="Je kunt meekijken, maar niets wijzigen.";b.hidden=false}else b.hidden=true}
+function route(){const h=location.hash.slice(1);
+  if(/^j-[A-Za-z0-9_-]+$/.test(h))handleScan(h.slice(2));
+  else if(VIEWS.includes(h)){S.view=h;S.justScanned=null}}
+function render(){
+  const tab=S.view==="dossier"?"jongeren":S.view;
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.view===tab?"page":"false"));
+  ["leiding","dashboard","jongeren","dossier","toestemming"].forEach(v=>{$("#v-"+v).hidden=S.view!==v});
+  $("#scan-btn").hidden=S.view==="toestemming"||!S.canWrite;
+  ({leiding:renderLeiding,dashboard:renderDash,jongeren:renderJongeren,dossier:renderDossier,toestemming:renderToest})[S.view]();
+}
+function go(v){S.pendingMood=null;S.delArmed=null;try{history.replaceState(null,"","#"+v)}catch(_){}
+  if(v.startsWith("j-")){S.view="dossier";S.dossier=v.slice(2);S.justScanned=null}else{S.view=v;S.justScanned=null}
+  render();window.scrollTo(0,0)}
+document.querySelector("nav.tabs").onclick=e=>{const b=e.target.closest("[data-view]");if(b)go(b.dataset.view)};
+route();render();
+window.addEventListener("hashchange",()=>{route();render()});
+
+(async function boot(){
+  try{db=await claude.use("db")}catch(_){db=null}
+  try{user=await claude.use("user")}catch(_){user=null}
+  if(!db){S.canWrite=false;S.loaded.j=true;S.loaded.s=true;banner("De demo-gegevens zijn niet bereikbaar.");render();return}
+  try{dl=await claude.use("downloads")}catch(_){dl=null}
+  if(user){S.me=await user.me();if(await user.can("data.write")===false)S.canWrite=false}
+  banner();
+  const timer=setTimeout(()=>{if(!S.loaded.j||!S.loaded.s)banner("De gegevens laden traag. Wat je ziet kan nog niet compleet zijn.")},10000);
+  const ok=()=>{if(S.loaded.j&&S.loaded.s){clearTimeout(timer);banner();if(S.view==="dossier"&&!S.scanned[S.dossier]&&/^j-/.test(location.hash.slice(1)))handleScan(S.dossier)}};
+  const fail=e=>{clearTimeout(timer);console.error(e);banner("De verbinding met de gegevens is verbroken. Laad de pagina opnieuw.")};
+  db.collection("jongeren").onSnapshot(s=>{S.jongeren=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(!s.metadata.fromCache)S.loaded.j=true;ok();render()},fail);
+  db.collection("sessies").onSnapshot(s=>{const m={};s.docs.forEach(d=>{m[d.id]=d.data()});S.sessies=m;if(!s.metadata.fromCache)S.loaded.s=true;ok();render()},fail);
+  db.collection("notities").orderBy("aangemaakt","desc").limit(300).onSnapshot(s=>{S.notities=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},fail);
+  db.collection("instellingen").doc("algemeen").onSnapshot(sn=>{const d=sn.exists?sn.data().dag:null;
+    if(typeof d==="number"&&d!==S.dag){S.dag=d;if(!S.datumGekozen)S.datum=sessionDate(d);render()}},fail);
+  db.collection("toestemmingen").onSnapshot(s=>{const m={};s.docs.forEach(d=>{m[d.id]=d.data()});S.toest=m;render()},fail);
+})();
+})();
+</script>
+
+</body>
+</html>
